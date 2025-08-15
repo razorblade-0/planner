@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Minimal Planner App</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+    /* ---- Base Styles ---- */
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; margin:0; padding:0; background:#fff; color:#111; }
+    header { background:#000; color:#fff; text-align:center; padding:15px 0; font-size:1.5rem; letter-spacing:1px; }
+    nav { display:flex; background:#111; }
+    nav button {
+        flex:1; padding:12px; border:none; background:#111; color:#fff; cursor:pointer;
+        font-weight:600; transition: all 0.2s;
+    }
+    nav button:hover, nav button.active-tab { background:#222; }
+    .tab { display:none; padding:20px; }
+    .active { display:block; }
+    textarea { width:100%; height:150px; border:1px solid #ccc; border-radius:6px; padding:10px; font-size:1rem; font-family:inherit; resize:none; }
+    input[type=text] { width:80%; padding:8px; border:1px solid #ccc; border-radius:6px; margin-right:5px; }
+    button.add-task { padding:8px 12px; border:none; border-radius:6px; background:#000; color:#fff; cursor:pointer; transition:all 0.2s; }
+    button.add-task:hover { background:#333; }
+    ul { list-style:none; padding:0; margin:10px 0; }
+    li { padding:8px 10px; border:1px solid #ccc; border-radius:6px; margin-bottom:5px; display:flex; justify-content:space-between; align-items:center; }
+    li.done { text-decoration:line-through; opacity:0.6; }
+    button.delete-task { background:#ff4d4d; color:#fff; border:none; border-radius:4px; padding:4px 6px; cursor:pointer; }
+    /* ---- Calendar Grid ---- */
+    .calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+    .calendar div { border:1px solid #ccc; padding:8px; border-radius:6px; text-align:center; cursor:pointer; position:relative; }
+    .calendar div span.moon { font-size:0.8rem; position:absolute; top:2px; right:2px; }
+</style>
+</head>
+<body>
+
+<header>Minimal Planner</header>
+
+<nav>
+    <button class="active-tab" onclick="showTab('daily')">Daily</button>
+    <button onclick="showTab('weekly')">Weekly</button>
+    <button onclick="showTab('monthly')">Monthly</button>
+    <button onclick="showTab('yearly')">Yearly Goals</button>
+    <button onclick="showTab('seasonal')">Seasonal Goals</button>
+    <button onclick="showTab('lunar')">Lunar Cycle</button>
+</nav>
+
+<!-- ----- Daily Tab ----- -->
+<div id="daily" class="tab active">
+    <h2>Daily View</h2>
+    <p id="daily-date"></p>
+    <input type="text" id="task-input" placeholder="New Task">
+    <button class="add-task" onclick="addTask()">Add</button>
+    <ul id="task-list"></ul>
+</div>
+
+<!-- ----- Weekly Tab ----- -->
+<div id="weekly" class="tab">
+    <h2>Weekly View</h2>
+    <div id="weekly-grid" style="display:flex; gap:10px;"></div>
+</div>
+
+<!-- ----- Monthly Tab ----- -->
+<div id="monthly" class="tab">
+    <h2>Monthly View</h2>
+    <div id="monthly-calendar" class="calendar"></div>
+</div>
+
+<!-- ----- Yearly Goals ----- -->
+<div id="yearly" class="tab">
+    <h2>Yearly Goals</h2>
+    <textarea id="yearly-goals" placeholder="Write your yearly goals here..."></textarea>
+</div>
+
+<!-- ----- Seasonal Goals ----- -->
+<div id="seasonal" class="tab">
+    <h2>Seasonal Goals</h2>
+    <textarea id="seasonal-goals" placeholder="Write your seasonal goals here..."></textarea>
+</div>
+
+<!-- ----- Lunar Cycle ----- -->
+<div id="lunar" class="tab">
+    <h2>Lunar Cycle</h2>
+    <div id="lunar-calendar" class="calendar"></div>
+</div>
+
+<script>
+/* ---- Tab Navigation ---- */
+function showTab(tabId) {
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active-tab'));
+    event.currentTarget.classList.add('active-tab');
+}
+
+/* ---- Daily Task Management ---- */
+let today = new Date().toISOString().slice(0,10);
+document.getElementById('daily-date').innerText = today;
+
+function loadTasks() {
+    let tasks = JSON.parse(localStorage.getItem(today)) || [];
+    let list = document.getElementById('task-list');
+    list.innerHTML = '';
+    tasks.forEach((task, i) => {
+        let li = document.createElement('li');
+        li.innerHTML = `<span>${task.text}</span><div><input type="checkbox" ${task.done?'checked':''} onchange="toggleTask(${i})"> <button class="delete-task" onclick="deleteTask(${i})">X</button></div>`;
+        if(task.done) li.classList.add('done');
+        list.appendChild(li);
+    });
+}
+
+function addTask() {
+    let input = document.getElementById('task-input');
+    if(input.value.trim() === '') return;
+    let tasks = JSON.parse(localStorage.getItem(today)) || [];
+    tasks.push({text:input.value, done:false});
+    localStorage.setItem(today, JSON.stringify(tasks));
+    input.value = '';
+    loadTasks();
+}
+
+function toggleTask(index) {
+    let tasks = JSON.parse(localStorage.getItem(today)) || [];
+    tasks[index].done = !tasks[index].done;
+    localStorage.setItem(today, JSON.stringify(tasks));
+    loadTasks();
+}
+
+function deleteTask(index) {
+    let tasks = JSON.parse(localStorage.getItem(today)) || [];
+    tasks.splice(index,1);
+    localStorage.setItem(today, JSON.stringify(tasks));
+    loadTasks();
+}
+
+loadTasks();
+
+/* ---- Weekly View ---- */
+function loadWeekly() {
+    let weeklyGrid = document.getElementById('weekly-grid');
+    weeklyGrid.innerHTML='';
+    let start = new Date();
+    start.setDate(start.getDate() - start.getDay()); // Sunday
+    for(let i=0;i<7;i++){
+        let day = new Date(start);
+        day.setDate(start.getDate()+i);
+        let key = day.toISOString().slice(0,10);
+        let count = (JSON.parse(localStorage.getItem(key)) || []).length;
+        let div = document.createElement('div');
+        div.style.flex='1';
+        div.style.border='1px solid #ccc';
+        div.style.borderRadius='6px';
+        div.style.padding='10px';
+        div.style.textAlign='center';
+        div.style.cursor='pointer';
+        div.innerHTML = `<strong>${day.toDateString().slice(0,3)}</strong><br>${count} tasks`;
+        div.onclick = ()=>{today=key; document.getElementById('daily-date').innerText=today; loadTasks(); showTab('daily');};
+        weeklyGrid.appendChild(div);
+    }
+}
+loadWeekly();
+
+/* ---- Monthly Calendar ---- */
+function loadMonthly() {
+    let calendar = document.getElementById('monthly-calendar');
+    calendar.innerHTML='';
+    let now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth();
+    let firstDay = new Date(year, month,1).getDay();
+    let daysInMonth = new Date(year, month+1,0).getDate();
+    for(let i=0;i<firstDay;i++) { let empty=document.createElement('div'); calendar.appendChild(empty); }
+    for(let d=1;d<=daysInMonth;d++){
+        let date = new Date(year,month,d);
+        let key = date.toISOString().slice(0,10);
+        let count = (JSON.parse(localStorage.getItem(key)) || []).length;
+        let div = document.createElement('div');
+        div.innerHTML = `${d}<span class="moon">${getMoonPhase(date)}</span><br>${count} tasks`;
+        div.onclick = ()=>{today=key; document.getElementById('daily-date').innerText=today; loadTasks(); showTab('daily');};
+        calendar.appendChild(div);
+    }
+}
+loadMonthly();
+
+/* ---- Yearly & Seasonal Goals ---- */
+document.getElementById('yearly-goals').value = localStorage.getItem('yearly-goals') || '';
+document.getElementById('yearly-goals').addEventListener('input', e=>{
+    localStorage.setItem('yearly-goals', e.target.value);
+});
+document.getElementById('seasonal-goals').value = localStorage.getItem('seasonal-goals') || '';
+document.getElementById('seasonal-goals').addEventListener('input', e=>{
+    localStorage.setItem('seasonal-goals', e.target.value);
+});
+
+/* ---- Lunar Calendar ---- */
+function loadLunar() {
+    let calendar = document.getElementById('lunar-calendar');
+    calendar.innerHTML='';
+    let now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth();
+    let daysInMonth = new Date(year, month+1,0).getDate();
+    for(let d=1;d<=daysInMonth;d++){
+        let date = new Date(year,month,d);
+        let div=document.createElement('div');
+        div.innerHTML = `${d}<br><span class="moon">${getMoonPhase(date)}</span>`;
+        calendar.appendChild(div);
+    }
+}
+loadLunar();
+
+/* ---- Simple Moon Phase Calculation ---- */
+function getMoonPhase(date){
+    let lp = 2551443; // lunar period in seconds
+    let new_moon = new Date('2000-01-06T18:14:00Z'); // known new moon
+    let phase = ((date - new_moon)/1000) % lp;
+    let idx = Math.floor((phase / lp)*8);
+    let phases = ['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'];
+    return phases[idx];
+}
+</script>
+
+</body>
+</html>
